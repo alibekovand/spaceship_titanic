@@ -5,6 +5,11 @@ from sklearn.preprocessing import LabelEncoder
 from catboost import CatBoostClassifier
 import lightgbm as lgb
 
+import warnings
+warnings.filterwarnings('ignore')
+
+from time import strftime, localtime
+
 
 
 df_test = pd.read_csv('./test.csv')
@@ -206,16 +211,15 @@ def cat_prepare_data(X):
 def cat_best_train(X_train, y_train):
     cat_features = ['CryoSleep', 'Destination', 'HomePlanet', 'Family_size', 'Cabin_side', 'Cabin_deck', 'Group_size', 'No_spending', 'VIP', 'Solo']
     X_train = cat_prepare_data(X_train)
-    params = {'loss_function':'Logloss', # objective function
-          'eval_metric':'AUC', # metric
-          #'verbose': 200, # output to stdout info about training process every 200 iterations
+    params = {'loss_function':'Logloss', 
+          'eval_metric':'AUC', 
           'random_seed': 42,
           #'early_stopping_rounds': 200,
           'iterations': 1800,
           'learning_rate': 0.018791,
           #'boosting_type': 'Ordered',
           #'bootstrap_type': 'MVS',
-          #'learning_rate': 0.04505588516491369, 'depth': 12, 'colsample_bylevel': 0.964262259559453, 'min_data_in_leaf': 92
+          # 'depth': 12, 'colsample_bylevel': 0.964262259559453, 'min_data_in_leaf': 92
          }
 
     model_cat = CatBoostClassifier(**params, silent=True)
@@ -225,6 +229,7 @@ def cat_best_train(X_train, y_train):
               #use_best_model=True, 
               #plot=True
              )
+    model_cat.set_probability_threshold(0.5045)
     return model_cat
 
 
@@ -232,9 +237,9 @@ def cat_best_train(X_train, y_train):
 # submission
 
 model_cat = cat_best_train(X_train, y_train)
+#model_cat.save_model('./model/cat_model ' + strftime("%Y-%m-%d %H:%M:%S", localtime()))
+model_cat.save_model('./model/catboost.cbm')
 X_test_cat = cat_prepare_data(X_test)
-
-model_cat.set_probability_threshold(0.5045)
 y_pred_cat = model_cat.predict(X_test_cat)
 df_res['Transported'] = y_pred_cat
-df_res.to_csv('result.csv', index=False)
+df_res.to_csv('./data/results.csv', index=False)
