@@ -4,13 +4,14 @@ import sklearn.metrics as metrics
 from sklearn.preprocessing import LabelEncoder
 from catboost import CatBoostClassifier
 import lightgbm as lgb
+import fire
 
 import warnings
 warnings.filterwarnings('ignore')
 
 from time import strftime, localtime
 
-
+print('Preprocessing started')
 
 df_test = pd.read_csv('./test.csv')
 df = pd.read_csv('./train.csv')
@@ -28,6 +29,8 @@ df['No_spending'] = (df['Total_spending']==0).astype(int)
 df_test['Total_spending'] = df_test[spend_feats].sum(axis=1)
 df_test['No_spending'] = (df_test['Total_spending']==0).astype(int)
 
+print('Spending features added')
+
 def cabin_parse(df):
     df['Cabin'].fillna('np.nan/-1/np.nan',inplace=True)  # можем сплитить nan
     
@@ -43,6 +46,8 @@ def cabin_parse(df):
 df = cabin_parse(df)
 df_test = cabin_parse(df_test)
 
+print('Cabin parsed')
+
 def Id_parse(df):
     df['Group'] = df['PassengerId'].apply(lambda x: x.split('_')[0]).astype(int)   
     df['Group_size']=df['Group'].map(lambda x: df['Group'].value_counts()[x])
@@ -51,6 +56,7 @@ def Id_parse(df):
 
 df = Id_parse(df)
 df_test = Id_parse(df_test)
+print('ID parsed')
 
 def Name_parse(df):
     df['Name'].fillna('Unknown Unknown', inplace=True)
@@ -68,6 +74,7 @@ def Name_parse(df):
 
 df = Name_parse(df)
 df_test = Name_parse(df_test)
+print('Name parsed')
 
 # missing values
 
@@ -234,12 +241,26 @@ def cat_best_train(X_train, y_train):
 
 
 
-# submission
+def train():
+    print('Training started')
+    model_cat = cat_best_train(X_train, y_train)
+    model_cat.save_model('./model/catboost.cbm')
+    print('Training ended')
 
-model_cat = cat_best_train(X_train, y_train)
-#model_cat.save_model('./model/cat_model ' + strftime("%Y-%m-%d %H:%M:%S", localtime()))
-model_cat.save_model('./model/catboost.cbm')
-X_test_cat = cat_prepare_data(X_test)
-y_pred_cat = model_cat.predict(X_test_cat)
-df_res['Transported'] = y_pred_cat
-df_res.to_csv('./data/results.csv', index=False)
+def predict():
+    print('Prediction started')
+    model_cat = CatBoostClassifier()
+    model_cat.load_model('./model/catboost.cbm')
+    X_test_cat = cat_prepare_data(X_test)
+    y_pred_cat = model_cat.predict(X_test_cat)
+    df_res['Transported'] = y_pred_cat
+    df_res.to_csv('./data/results.csv', index=False)
+    print('Prediction done')
+
+
+
+if __name__ == '__main__':
+  fire.Fire({
+      'train': train,
+      'predict': predict
+  })
